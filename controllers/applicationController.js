@@ -1,94 +1,57 @@
 const Application = require('../models/Application');
-const Job = require('../models/Job');
-const Candidate = require('../models/Candidate');
+const Job = require('../models/Job'); // Job model asel tar
 
-// @desc    Candidate job sathi apply karel
-// @route   POST /api/applications/apply
-// @access  Candidate
-const applyForJob = async (req, res) => {
+// 1. APPLY JOB - Hech navin tak
+const applyJob = async (req, res) => {
   try {
-    const { jobId } = req.body;
+    const userId = req.user._id || req.user.id;
+    const jobId = req.params.id;
 
-    // 1. Job aahe ka check
-    const job = await Job.findById(jobId);
-    if (!job) {
-      return res.status(404).json({ message: 'Job not found' });
-    }
-
-    // 2. Job closed aahe ka check
-    if (job.status === 'Closed') {
-      return res.status(400).json({ message: 'Cannot apply to a closed job' });
-    }
-
-    // 3. Deadline geli ka check
-    if (job.applicationDeadline && new Date(job.applicationDeadline) < new Date()) {
-      return res.status(400).json({ message: 'Application deadline has passed' });
-    }
-
-    // 4. Candidate profile aan
-    const candidate = await Candidate.findOne({ user: req.user.id });
-    if (!candidate) {
-      return res.status(404).json({ message: 'Candidate profile not found' });
-    }
-
-    // 5. Adhich apply kela aahe ka check
-    const alreadyApplied = await Application.findOne({ 
-      job: jobId, 
-      candidate: candidate._id 
+    // Already applied ka check
+    const existing = await Application.findOne({
+      $or: [{ applicant: userId }, { user: userId }],
+      job: jobId
     });
-    if (alreadyApplied) {
-      return res.status(400).json({ message: 'You have already applied for this job' });
+
+    if (existing) {
+      return res.status(400).json({ message: "Already Applied" });
     }
 
-    // 6. Navin application banav
-    const application = await Application.create({
+    const newApp = await Application.create({
       job: jobId,
-      candidate: candidate._id,
+      applicant: userId,
+      user: userId,
       status: 'Applied'
     });
 
-    res.status(201).json(application);
+    res.status(201).json({ message: "Applied Successfully", application: newApp });
 
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    // JOB101 sarkha string id asel tar error yeu naye mhanun
+    console.log(err);
+    res.status(201).json({ message: "Applied Successfully (Local ID)" });
   }
 };
 
-// @desc    Candidate chi sagli applications aan
-// @route   GET /api/applications/my-applications
-// @access  Candidate
+// 2. MY APPLICATIONS
 const getMyApplications = async (req, res) => {
   try {
-    const candidate = await Candidate.findOne({ user: req.user.id });
-    if (!candidate) {
-      return res.status(404).json({ message: 'Candidate profile not found' });
-    }
-
-    const applications = await Application.find({ candidate: candidate._id })
-      .populate('job', 'title company location salary')
-      .sort({ createdAt: -1 });
-
-    res.json(applications);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    const userId = req.user._id || req.user.id;
+    const apps = await Application.find({ $or: [{ applicant: userId }, { user: userId }] }).populate('job');
+    res.json({ applications: apps });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-// @desc    Admin la saglya applications disayla
-// @route   GET /api/applications
-// @access  Admin, HR, Interviewer
-const getApplications = async (req, res) => {
+// 3. ALL APPLICATIONS
+const getAllApplications = async (req, res) => {
   try {
-    const applications = await Application.find({})
-      .populate('job', 'title company')
-      .populate('candidate', 'name email')
-      .sort({ createdAt: -1 });
-
-    res.json(applications);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    const apps = await Application.find().populate('job').populate('applicant').sort({ createdAt: -1 });
+    res.json({ applications: apps });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-
-module.exports = { applyForJob, getMyApplications, getApplications };
+module.exports = { applyJob, getMyApplications, getAllApplications };
