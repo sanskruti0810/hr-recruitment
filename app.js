@@ -12,9 +12,13 @@ app.get('/', (req, res) => {
   res.send('API is running...');
 });
 
-// Tumche routes ithe add kara - jase tumchyakade hote
-// Example:
-// app.use('/api/auth', require('./routes/authRoutes'));
-// app.use('/api/jobs', require('./routes/jobRoutes'));
+// All Routes
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/jobs', require('./routes/jobRoutes'));
+app.use('/api/candidates', require('./routes/candidateRoutes'));
+app.use('/api/applications', require('./routes/applicationRoutes'));
+app.use('/api/departments', require('./routes/departmentRoutes'));
+app.use('/api/interviews', require('./routes/interviewRoutes'));
+app.use('/api/feedback', require('./routes/feedbackRoutes'));
 
 module.exports = app;
